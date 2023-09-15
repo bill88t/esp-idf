@@ -140,7 +140,7 @@ static esp_err_t lcd_rgb_panel_alloc_frame_buffers(const esp_lcd_rgb_panel_confi
     if (rgb_panel->num_fbs > 0) {
         // fb_in_psram is only an option, if there's no PSRAM on board, we fallback to alloc from SRAM
         if (rgb_panel_config->flags.fb_in_psram) {
-#if CONFIG_SPIRAM_USE_MALLOC || CONFIG_SPIRAM_USE_CAPS_ALLOC
+#if CONFIG_SPIRAM
             if (esp_psram_is_initialized()) {
                 fb_in_psram = true;
             }
@@ -172,9 +172,11 @@ static esp_err_t lcd_rgb_panel_alloc_frame_buffers(const esp_lcd_rgb_panel_confi
     return ESP_OK;
 }
 
-static esp_err_t lcd_rgb_panel_destory(esp_rgb_panel_t *rgb_panel)
+static esp_err_t lcd_rgb_panel_destroy(esp_rgb_panel_t *rgb_panel)
 {
-    lcd_ll_enable_clock(rgb_panel->hal.dev, false);
+    if (rgb_panel->hal.dev) {
+        lcd_ll_enable_clock(rgb_panel->hal.dev, false);
+    }
     if (rgb_panel->panel_id >= 0) {
         periph_module_disable(lcd_periph_signals.panels[rgb_panel->panel_id].module);
         lcd_com_remove_device(LCD_COM_DEVICE_TYPE_RGB, rgb_panel->panel_id);
@@ -282,7 +284,8 @@ esp_err_t esp_lcd_new_rgb_panel(const esp_lcd_rgb_panel_config_t *rgb_panel_conf
     periph_module_reset(lcd_periph_signals.panels[panel_id].module);
 
     // allocate frame buffers + bounce buffers
-    ESP_GOTO_ON_ERROR(lcd_rgb_panel_alloc_frame_buffers(rgb_panel_config, rgb_panel), err, TAG, "alloc frame buffers failed");
+    ret = lcd_rgb_panel_alloc_frame_buffers(rgb_panel_config, rgb_panel);
+    ESP_GOTO_ON_ERROR(ret, err, TAG, "alloc frame buffers failed");
 
     // initialize HAL layer, so we can call LL APIs later
     lcd_hal_init(&rgb_panel->hal, panel_id);
@@ -344,7 +347,7 @@ esp_err_t esp_lcd_new_rgb_panel(const esp_lcd_rgb_panel_config_t *rgb_panel_conf
 
 err:
     if (rgb_panel) {
-        lcd_rgb_panel_destory(rgb_panel);
+        lcd_rgb_panel_destroy(rgb_panel);
     }
     return ret;
 }
@@ -481,7 +484,7 @@ static esp_err_t rgb_panel_del(esp_lcd_panel_t *panel)
 {
     esp_rgb_panel_t *rgb_panel = __containerof(panel, esp_rgb_panel_t, base);
     int panel_id = rgb_panel->panel_id;
-    ESP_RETURN_ON_ERROR(lcd_rgb_panel_destory(rgb_panel), TAG, "destroy rgb panel(%d) failed", panel_id);
+    ESP_RETURN_ON_ERROR(lcd_rgb_panel_destroy(rgb_panel), TAG, "destroy rgb panel(%d) failed", panel_id);
     ESP_LOGD(TAG, "del rgb panel(%d)", panel_id);
     return ESP_OK;
 }
