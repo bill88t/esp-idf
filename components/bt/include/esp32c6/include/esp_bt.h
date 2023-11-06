@@ -104,6 +104,14 @@ typedef enum {
 } esp_ble_enhanced_power_type_t;
 
 /**
+ * @brief Select buffers
+*/
+typedef enum {
+    ESP_BLE_LOG_BUF_HCI         = 0x02,
+    ESP_BLE_LOG_BUF_CONTROLLER  = 0x05,
+} esp_ble_log_buf_t;
+
+/**
  * @brief Address type and address value.
  */
 typedef struct {
@@ -412,7 +420,7 @@ extern int esp_ble_hw_get_static_addr(esp_ble_addr_t *addr);
 
 #if CONFIG_BT_LE_CONTROLLER_LOG_ENABLED
 /**
- * @brief dump all controller log information cached in buffer
+ * @brief dump all log information cached in buffers.
  * @param output : true for log dump, false will take no effect
  */
 void esp_ble_controller_log_dump_all(bool output);

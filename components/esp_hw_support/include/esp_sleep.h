@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -300,9 +300,13 @@ esp_err_t esp_sleep_enable_ext1_wakeup(uint64_t mask, esp_sleep_ext1_wakeup_mode
  * @note This function does not modify pin configuration. The pins are
  *       configured inside esp_deep_sleep_start, immediately before entering sleep mode.
  *
- * @note You don't need to care to pull-up or pull-down before using this
- *       function, because this will be set internally in esp_deep_sleep_start
- *       based on the wakeup mode. BTW, when you use low level to wake up the
+ * @note You don't need to worry about pull-up or pull-down resistors before
+ *       using this function because the ESP_SLEEP_GPIO_ENABLE_INTERNAL_RESISTORS
+ *       option is enabled by default. It will automatically set pull-up or pull-down
+ *       resistors internally in esp_deep_sleep_start based on the wakeup mode. However,
+ *       when using external pull-up or pull-down resistors, please be sure to disable
+ *       the ESP_SLEEP_GPIO_ENABLE_INTERNAL_RESISTORS option, as the combination of internal
+ *       and external resistors may cause interference. BTW, when you use low level to wake up the
  *       chip, we strongly recommend you to add external resistors (pull-up).
  *
  * @param gpio_pin_mask  Bit mask of GPIO numbers which will cause wakeup. Only GPIOs
@@ -439,8 +443,20 @@ esp_err_t esp_sleep_pd_config(esp_sleep_pd_domain_t domain,
  * then it returns from it.
  *
  * The reason for the rejection can be such as a short sleep time.
+ *
+ * @return
+ *  - No return - If the sleep is not rejected.
+ *  - ESP_ERR_SLEEP_REJECT sleep request is rejected(wakeup source set before the sleep request)
  */
-void esp_deep_sleep_start(void);
+esp_err_t esp_deep_sleep_try_to_start(void);
+
+/**
+ * @brief Enter deep sleep with the configured wakeup options
+ *
+ * @note The function does not do a return (no rejection). Even if wakeup source set before the sleep request
+ * it goes to deep sleep anyway.
+ */
+void esp_deep_sleep_start(void) __attribute__((__noreturn__));
 
 /**
  * @brief Enter light sleep with the configured wakeup options
@@ -464,15 +480,30 @@ esp_err_t esp_light_sleep_start(void);
  * Call to this function is equivalent to a call to esp_deep_sleep_enable_timer_wakeup
  * followed by a call to esp_deep_sleep_start.
  *
- * @note In general, the function does not return, but if the sleep is rejected,
- * then it returns from it.
+ * @param time_in_us  deep-sleep time, unit: microsecond
  *
- * The reason for the rejection can be such as a short sleep time.
+ * @return
+ *  - No return - If the sleep is not rejected.
+ *  - ESP_ERR_SLEEP_REJECT sleep request is rejected(wakeup source set before the sleep request)
+ */
+esp_err_t esp_deep_sleep_try(uint64_t time_in_us);
+
+/**
+ * @brief Enter deep-sleep mode
+ *
+ * The device will automatically wake up after the deep-sleep time
+ * Upon waking up, the device calls deep sleep wake stub, and then proceeds
+ * to load application.
+ *
+ * Call to this function is equivalent to a call to esp_deep_sleep_enable_timer_wakeup
+ * followed by a call to esp_deep_sleep_start.
+ *
+ * @note The function does not do a return (no rejection).. Even if wakeup source set before the sleep request
+ * it goes to deep sleep anyway.
  *
  * @param time_in_us  deep-sleep time, unit: microsecond
  */
-void esp_deep_sleep(uint64_t time_in_us);
-
+void esp_deep_sleep(uint64_t time_in_us) __attribute__((__noreturn__));
 
 /**
   * @brief Register a callback to be called from the deep sleep prepare
